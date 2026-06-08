@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/config";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const { user, profile, loading } = useAuth();
+  
+  const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL || "tu@correo.com";
+
+  useEffect(() => {
+    // Redirigir automáticamente si ya está logueado Y terminó de cargar el perfil
+    if (!loading && user) {
+      if (user.email === SUPER_ADMIN_EMAIL) {
+        router.push("/superadmin");
+      } else {
+        router.push("/admin");
+      }
+    }
+  }, [user, loading, router, SUPER_ADMIN_EMAIL]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +33,7 @@ export default function LoginPage() {
     try {
       // Intento real con Firebase
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/superadmin");
+      // La redirección ocurrirá por el useEffect al cambiar el estado del user
     } catch (err: any) {
       console.error(err);
       setError("Error al iniciar sesión. Verifica tus credenciales.");

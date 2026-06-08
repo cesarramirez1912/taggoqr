@@ -1,14 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase/config";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+
+interface TenantData {
+  id: string;
+  name: string;
+  subscriptionStatus: "active" | "disabled" | "trial";
+  createdAt: any;
+}
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
-  const [tenants] = useState([
-    { id: "tenant-1", name: "Constructora Alfa", status: "active", users: 5 },
-    { id: "tenant-2", name: "Logística Beta", status: "trial", users: 2 }
-  ]);
+  const [tenants, setTenants] = useState<TenantData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTenants = async () => {
+    try {
+      const snap = await getDocs(collection(db, "tenants"));
+      const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as TenantData));
+      setTenants(list);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTenants();
+  }, []);
+
+  const toggleStatus = async (tenantId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "disabled" : "active";
+    await updateDoc(doc(db, "tenants", tenantId), { subscriptionStatus: newStatus });
+    fetchTenants();
+  };
+
+  if (loading) return <div className="p-8">Cargando empresas...</div>;
 
   return (
     <div className="space-y-6">
@@ -22,35 +52,41 @@ export default function SuperAdminDashboard() {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-500">
+          <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
             <tr>
-              <th className="p-4 font-medium rounded-tl-lg">ID</th>
-              <th className="p-4 font-medium">Nombre</th>
+              <th className="p-4 font-medium">Nombre de la Empresa</th>
               <th className="p-4 font-medium">Estado</th>
-              <th className="p-4 font-medium">Usuarios</th>
-              <th className="p-4 font-medium rounded-tr-lg">Acciones</th>
+              <th className="p-4 font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {tenants.map(t => (
-              <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 font-mono text-slate-500">{t.id}</td>
-                <td className="p-4 font-medium text-slate-900">{t.name}</td>
+            {tenants.map(tenant => (
+              <tr key={tenant.id} className="hover:bg-slate-50 transition-colors">
+                <td className="p-4 font-medium text-slate-900">{tenant.name}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    t.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    tenant.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {t.status}
+                    {tenant.subscriptionStatus === 'active' ? 'Activa' : 'Deshabilitada'}
                   </span>
                 </td>
-                <td className="p-4">{t.users}</td>
                 <td className="p-4">
-                  <button className="text-blue-600 hover:text-blue-800 font-medium">Administrar</button>
+                  <button 
+                    onClick={() => toggleStatus(tenant.id, tenant.subscriptionStatus)}
+                    className="text-purple-600 hover:text-purple-800 font-medium"
+                  >
+                    {tenant.subscriptionStatus === 'active' ? 'Deshabilitar' : 'Habilitar'}
+                  </button>
                 </td>
               </tr>
             ))}
+            {tenants.length === 0 && (
+              <tr>
+                <td colSpan={3} className="p-4 text-center text-slate-500">No hay empresas registradas aún.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

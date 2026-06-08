@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función auxiliar para saber si el usuario ha iniciado sesión
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Función para obtener el documento de perfil del usuario
+    function getUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Función para saber si es super admin
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'ramirez-1912@hotmail.com' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)) != null && getUserProfile().globalRole == 'super_admin')
+      );
+    }
+
+    // Función para saber si el usuario tiene acceso a un tenant (empresa) específico
+    function hasTenantAccess(tenantId) {
+      return isAuthenticated() && (
+        isSuperAdmin() || 
+        getUserProfile().tenantRoles[tenantId] != null
+      );
+    }
+
+    // 1. Colección de Usuarios
+    // El usuario solo puede leer su propio documento.
+    // La escritura se hace desde el Backend (Server Actions) con firebase-admin que ignora estas reglas.
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isSuperAdmin();
+    }
+
+    // 2. Colección de Empresas (Tenants)
+    match /tenants/{tenantId} {
+      allow read: if hasTenantAccess(tenantId);
+      allow write: if isSuperAdmin();
+    }
+
+    // 3. Colección de Activos (Assets)
+    // Lectura pública (cualquiera con el QR/Link puede ver el perfil)
+    // Escritura restringida al dueño de la empresa o Super Admin
+    match /assets/{assetId} {
+      allow read: if true;
+      allow write: if hasTenantAccess(resource.data.tenantId) || hasTenantAccess(request.resource.data.tenantId);
+    }
+
+    // 4. Colección de Etiquetas QR (qrTags)
+    match /qrTags/{qrId} {
+      allow read: if hasTenantAccess(resource.data.tenantId);
+      allow write: if hasTenantAccess(resource.data.tenantId) || hasTenantAccess(request.resource.data.tenantId);
+    }
+
+    // 5. Colección de Mantenimientos
+    // Lectura pública para que se vea el historial
+    match /maintenances/{maintenanceId} {
+      allow read: if true;
+      allow write: if hasTenantAccess(request.resource.data.tenantId) || (resource != null && hasTenantAccess(resource.data.tenantId));
+    }
+  }
+}

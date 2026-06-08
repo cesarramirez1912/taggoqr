@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { db } from "@/lib/firebase/config";
-import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { Asset } from "@/lib/repositories/types";
 
-function NewAssetForm() {
-  const searchParams = useSearchParams();
+export default function EditAssetPage() {
+  const params = useParams();
   const router = useRouter();
   const { profile } = useAuth();
-  const qrId = searchParams.get("qrId");
+  const assetId = params.assetId as string;
 
   const [formData, setFormData] = useState({
     customId: "",
@@ -27,32 +27,72 @@ function NewAssetForm() {
     nextMaintenanceDate: "",
     status: "active" as Asset["status"],
   });
-  const [loading, setLoading] = useState(false);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchAsset = async () => {
+      if (!assetId) {
+        setError("ID no proporcionado");
+        setLoading(false);
+        return;
+      }
+      try {
+        const docRef = doc(db, "assets", assetId);
+        const docSnap = await getDoc(docRef);
+        
+        if (!docSnap.exists()) {
+          setError("Activo no encontrado.");
+          setLoading(false);
+          return;
+        }
+
+        const data = docSnap.data() as Asset;
+        
+        // Verificar permisos
+        if (!profile || !profile.tenantRoles || !profile.tenantRoles[data.tenantId]) {
+          setError("No tienes permiso para editar este activo.");
+          setLoading(false);
+          return;
+        }
+
+        setFormData({
+          customId: data.customId || "",
+          name: data.name || "",
+          type: data.type || "machine",
+          serialNumber: data.serialNumber || "",
+          location: data.location || "",
+          brand: data.brand || "",
+          model: data.model || "",
+          year: data.year || new Date().getFullYear(),
+          vinOrChassis: data.vinOrChassis || "",
+          usageMetrics: data.usageMetrics || "",
+          nextMaintenanceDate: data.nextMaintenanceDate || "",
+          status: data.status || "active",
+        });
+      } catch (err: any) {
+        console.error(err);
+        setError("Error al cargar los datos.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (profile) fetchAsset();
+  }, [assetId, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!assetId) return;
+    setSaving(true);
     setError("");
 
     try {
-      if (!profile || !profile.tenantRoles) {
-        throw new Error("No tienes una empresa asignada.");
-      }
-
-      const tenantId = Object.keys(profile.tenantRoles)[0];
-      if (!tenantId) throw new Error("No se pudo determinar tu empresa.");
-
-      // Generar ID si está vacío
-      let finalCustomId = formData.customId.trim();
-      if (!finalCustomId) {
-        finalCustomId = `ACT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      }
-
-      const newAsset: Omit<Asset, "id"> = {
-        tenantId,
-        qrTagId: qrId || "",
-        customId: finalCustomId,
+      const docRef = doc(db, "assets", assetId as string);
+      await updateDoc(docRef, {
+        customId: formData.customId,
         name: formData.name,
         type: formData.type,
         brand: formData.brand,
@@ -61,50 +101,31 @@ function NewAssetForm() {
         vinOrChassis: formData.vinOrChassis,
         usageMetrics: formData.usageMetrics,
         nextMaintenanceDate: formData.nextMaintenanceDate,
-        qrCodeUrl: "", // Lo enlazaremos luego o lo gestionaremos mediante el QRTag
         serialNumber: formData.serialNumber,
         location: formData.location,
         status: formData.status,
-        createdAt: new Date(),
-      };
+      });
 
-      const docRef = await addDoc(collection(db, "assets"), newAsset);
-
-      // Si venía desde un escaneo de QR vacío, hay que enlazar el QR a este activo
-      if (qrId) {
-        await updateDoc(doc(db, "qrTags", qrId), {
-          assetId: docRef.id,
-          status: "assigned"
-        });
-      }
-
-      alert("¡Activo registrado con éxito!");
-      router.push("/admin/assets");
+      router.push(`/a/${assetId}`);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error al guardar el activo");
+      setError("Error al guardar los cambios.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
+  if (loading) return <div className="p-8 text-center">Cargando datos...</div>;
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+
   return (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-      <h2 className="text-2xl font-bold text-slate-900 mb-2">Registrar Nuevo Activo</h2>
-      
-      {qrId ? (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-          <span className="font-medium mr-2">Enlazando con QR:</span>
-          <span className="font-mono bg-white px-2 py-1 rounded text-sm">{qrId}</span>
-        </div>
-      ) : (
-        <p className="text-slate-500 mb-6">Completa los datos del activo. Puedes asignarle un código QR después.</p>
-      )}
-
-      {error && <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-600">← Volver</button>
+        <h2 className="text-2xl font-bold text-slate-900">Editar Activo</h2>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        
         {/* SECCIÓN 1: Identificación Básica */}
         <div>
           <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Identificación Básica</h3>
@@ -114,20 +135,18 @@ function NewAssetForm() {
               <input 
                 required
                 type="text" 
-                placeholder="Ej. Tractor John Deere 5000"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">ID Personalizado (Opcional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">ID Personalizado</label>
               <input 
                 type="text" 
-                placeholder="Ej. MAQ-001 (Se generará solo si está vacío)"
                 value={formData.customId}
                 onChange={e => setFormData({...formData, customId: e.target.value})}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
             <div>
@@ -146,11 +165,22 @@ function NewAssetForm() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Ubicación / Sector</label>
               <input 
                 type="text" 
-                placeholder="Ej. Sector A, Finca Sur"
                 value={formData.location}
                 onChange={e => setFormData({...formData, location: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
+              <select 
+                value={formData.status}
+                onChange={e => setFormData({...formData, status: e.target.value as Asset["status"]})}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="active">Operativo</option>
+                <option value="maintenance">En Mantenimiento</option>
+                <option value="inactive">Inactivo / Baja</option>
+              </select>
             </div>
           </div>
         </div>
@@ -163,7 +193,6 @@ function NewAssetForm() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>
               <input 
                 type="text" 
-                placeholder="Ej. John Deere, Toyota"
                 value={formData.brand}
                 onChange={e => setFormData({...formData, brand: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -173,7 +202,6 @@ function NewAssetForm() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Modelo</label>
               <input 
                 type="text" 
-                placeholder="Ej. 5075E"
                 value={formData.model}
                 onChange={e => setFormData({...formData, model: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -192,17 +220,15 @@ function NewAssetForm() {
               <label className="block text-sm font-medium text-slate-700 mb-1">VIN / N° de Chasis</label>
               <input 
                 type="text" 
-                placeholder="Opcional"
                 value={formData.vinOrChassis}
                 onChange={e => setFormData({...formData, vinOrChassis: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">N° de Serie Motor / Fabricante</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">N° de Serie Motor</label>
               <input 
                 type="text" 
-                placeholder="Opcional"
                 value={formData.serialNumber}
                 onChange={e => setFormData({...formData, serialNumber: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -211,19 +237,19 @@ function NewAssetForm() {
           </div>
         </div>
 
-        {/* SECCIÓN 3: Mantenimiento y Estado */}
+        {/* SECCIÓN 3: Uso y Mantenimiento */}
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Mantenimiento y Estado</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Uso y Mantenimiento</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Kilómetros / Horas de Uso actuales</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Kilómetros / Horas de Uso</label>
               <input 
                 type="text" 
-                placeholder="Ej. 15000 km ó 450 horas"
                 value={formData.usageMetrics}
                 onChange={e => setFormData({...formData, usageMetrics: e.target.value})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+              <p className="text-xs text-slate-500 mt-1">Sugerencia: Usa el registro de mantenimiento para actualizar esto automáticamente.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Próximo Mantenimiento</label>
@@ -241,28 +267,20 @@ function NewAssetForm() {
           <button 
             type="button" 
             onClick={() => router.back()}
-            disabled={loading}
+            disabled={saving}
             className="px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
           >
             Cancelar
           </button>
           <button 
             type="submit" 
-            disabled={loading}
+            disabled={saving}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-8 py-2 rounded-lg font-medium transition-colors shadow-sm"
           >
-            {loading ? "Guardando..." : "Guardar Activo"}
+            {saving ? "Guardando..." : "Guardar Cambios"}
           </button>
         </div>
       </form>
     </div>
-  );
-}
-
-export default function NewAssetPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">Cargando formulario...</div>}>
-      <NewAssetForm />
-    </Suspense>
   );
 }

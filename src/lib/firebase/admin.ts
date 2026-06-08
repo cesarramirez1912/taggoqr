@@ -4,12 +4,19 @@ import { getStorage } from 'firebase-admin/storage';
 import { getAuth } from 'firebase-admin/auth';
 
 // Asegúrate de tener estas variables de entorno en tu .env.local
-// FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
+// FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY_BASE64
+
+let formattedPrivateKey = "";
+if (process.env.FIREBASE_PRIVATE_KEY_BASE64) {
+  formattedPrivateKey = Buffer.from(process.env.FIREBASE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
+} else if (process.env.FIREBASE_PRIVATE_KEY) {
+  formattedPrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+}
 
 const firebaseConfig = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  privateKey: formattedPrivateKey,
 };
 
 let app: App;

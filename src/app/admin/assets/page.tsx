@@ -1,13 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { Asset } from "@/lib/repositories/types";
 
 export default function AssetsListPage() {
-  const [assets] = useState([
-    { id: "asset_999", customId: "MAQ-001", name: "Tractor John Deere 5000", status: "active", location: "Finca Sur" },
-    { id: "asset_888", customId: "VEH-042", name: "Camioneta Hilux", status: "maintenance", location: "Taller Central" }
-  ]);
+  const { profile } = useAuth();
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!profile || !profile.tenantRoles) return;
+    
+    const tenantId = Object.keys(profile.tenantRoles)[0];
+    if (!tenantId) return;
+
+    const fetchAssets = async () => {
+      try {
+        const q = query(collection(db, "assets"), where("tenantId", "==", tenantId));
+        const snap = await getDocs(q);
+        const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Asset));
+        setAssets(list);
+      } catch (e) {
+        console.error("Error fetching assets:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssets();
+  }, [profile]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -22,36 +47,58 @@ export default function AssetsListPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-            <tr>
-              <th className="p-4 font-medium">ID</th>
-              <th className="p-4 font-medium">Nombre</th>
-              <th className="p-4 font-medium">Ubicación</th>
-              <th className="p-4 font-medium">Estado</th>
-              <th className="p-4 font-medium">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {assets.map(asset => (
-              <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 font-mono text-slate-500">{asset.customId}</td>
-                <td className="p-4 font-medium text-slate-900">{asset.name}</td>
-                <td className="p-4 text-slate-600">{asset.location}</td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    asset.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {asset.status === 'active' ? 'Operativo' : 'En Mantenimiento'}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <Link href={`/a/${asset.id}`} className="text-blue-600 hover:text-blue-800 font-medium">Ver Perfil</Link>
-                </td>
+        {loading ? (
+          <div className="p-8 text-center text-slate-500">Cargando activos...</div>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="p-4 font-medium">Código</th>
+                <th className="p-4 font-medium">Nombre / Modelo</th>
+                <th className="p-4 font-medium">Ubicación</th>
+                <th className="p-4 font-medium">Uso Actual</th>
+                <th className="p-4 font-medium">Estado</th>
+                <th className="p-4 font-medium">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {assets.map(asset => (
+                <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4 font-mono text-slate-500 font-medium">
+                    {asset.customId}
+                  </td>
+                  <td className="p-4">
+                    <div className="font-medium text-slate-900">{asset.name}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{asset.brand} {asset.model}</div>
+                  </td>
+                  <td className="p-4 text-slate-600">{asset.location || "-"}</td>
+                  <td className="p-4 text-slate-600">{asset.usageMetrics || "-"}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      asset.status === 'active' ? 'bg-green-100 text-green-700' : 
+                      asset.status === 'maintenance' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {asset.status === 'active' ? 'Operativo' : 
+                       asset.status === 'maintenance' ? 'En Mantenimiento' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <Link href={`/a?id=${asset.id}`} className="text-blue-600 hover:text-blue-800 font-medium transition-colors">Ver Perfil</Link>
+                  </td>
+                </tr>
+              ))}
+              {assets.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    <div className="mb-2">No tienes ningún activo registrado.</div>
+                    <Link href="/admin/assets/new" className="text-blue-600 font-medium hover:underline">Registrar el primero</Link>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

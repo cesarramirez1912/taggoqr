@@ -23,11 +23,20 @@ export interface QRTag {
 export interface Asset {
   id: string;
   tenantId: string;
-  qrTagId: string; // Referencia al QRTag
+  qrTagId: string; // Referencia al QRTag o string vacio si no tiene
 
   customId: string;
   name: string;
   type: "machine" | "vehicle" | "tool";
+  
+  // Campos agrícolas / vehiculares
+  brand: string;
+  model: string;
+  year: number;
+  vinOrChassis: string;
+  usageMetrics: string; // ej. "15000 km", "450 hs"
+  nextMaintenanceDate: string; // ISO date o texto
+
   qrCodeUrl: string;
   serialNumber: string;
   location: string;
@@ -39,10 +48,12 @@ export interface Maintenance {
   id: string;
   tenantId: string;
   assetId: string;
-  date: Date;
-  type: string;
+  date: string; // ISO date YYYY-MM-DD
+  type: string; // ej. "Preventivo", "Correctivo"
   description: string;
-  nextMaintenanceDate?: Date;
+  cost?: number; // Opcional, costo de la reparación
+  currency?: string; // Ej. "USD", "PYG", "BRL"
+  usageMetricsSnapshot?: string; // Ej. "15500 km" en el momento del mantenimiento
   photos: string[];
   createdAt: Date;
 }
