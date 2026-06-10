@@ -40,12 +40,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleMockLogin = () => {
-    // Solo para pruebas rápidas de UI: Forzar redirección
-    // Nota: El ProtectedRoute pedirá un usuario real de Firebase,
-    // por lo que para una prueba total necesitarás configurar Firebase.
-    router.push("/superadmin");
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -83,15 +78,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 border-t border-slate-200 pt-6">
-          <p className="text-sm text-slate-500 text-center mb-4">Modo de Prueba (Sin configurar Firebase)</p>
-          <button 
-            onClick={handleMockLogin}
-            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-lg transition-colors"
-          >
-            Ver Interfaz de Super Admin
-          </button>
-        </div>
+
       </div>
     </div>
   );

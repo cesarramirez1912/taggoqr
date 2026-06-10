@@ -84,7 +84,7 @@ export default function AssetsListPage() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <Link href={`/a?id=${asset.id}`} className="text-blue-600 hover:text-blue-800 font-medium transition-colors">Ver Perfil</Link>
+                    <Link href={`/a/${asset.id}`} className="text-blue-600 hover:text-blue-800 font-medium transition-colors">Ver Perfil</Link>
                   </td>
                 </tr>
               ))}

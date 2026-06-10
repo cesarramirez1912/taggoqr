@@ -100,6 +100,7 @@ export default function NewMaintenancePage() {
         usageMetricsSnapshot: formData.newUsageMetrics,
         photos: [],
         createdAt: new Date(),
+        createdBy: profile.id,
       };
       batch.set(maintRef, newMaintenance);
 
@@ -108,7 +109,9 @@ export default function NewMaintenancePage() {
       batch.update(assetRef, {
         usageMetrics: formData.newUsageMetrics,
         nextMaintenanceDate: formData.nextMaintenanceDate,
-        status: formData.newStatus
+        status: formData.newStatus,
+        updatedBy: profile.id,
+        updatedAt: new Date()
       });
 
       await batch.commit();

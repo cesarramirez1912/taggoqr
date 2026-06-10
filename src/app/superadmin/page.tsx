@@ -9,6 +9,7 @@ interface TenantData {
   id: string;
   name: string;
   subscriptionStatus: "active" | "disabled" | "trial";
+  maxUsers?: number;
   createdAt: any;
 }
 
@@ -57,6 +58,7 @@ export default function SuperAdminDashboard() {
           <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
             <tr>
               <th className="p-4 font-medium">Nombre de la Empresa</th>
+              <th className="p-4 font-medium text-center">Usuarios Máx.</th>
               <th className="p-4 font-medium">Estado</th>
               <th className="p-4 font-medium">Acciones</th>
             </tr>
@@ -65,6 +67,7 @@ export default function SuperAdminDashboard() {
             {tenants.map(tenant => (
               <tr key={tenant.id} className="hover:bg-slate-50 transition-colors">
                 <td className="p-4 font-medium text-slate-900">{tenant.name}</td>
+                <td className="p-4 text-center text-slate-600 font-medium">{tenant.maxUsers || 1}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     tenant.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -72,12 +75,18 @@ export default function SuperAdminDashboard() {
                     {tenant.subscriptionStatus === 'active' ? 'Activa' : 'Deshabilitada'}
                   </span>
                 </td>
-                <td className="p-4">
+                <td className="p-4 flex gap-3">
                   <button 
                     onClick={() => toggleStatus(tenant.id, tenant.subscriptionStatus)}
                     className="text-purple-600 hover:text-purple-800 font-medium"
                   >
                     {tenant.subscriptionStatus === 'active' ? 'Deshabilitar' : 'Habilitar'}
+                  </button>
+                  <button 
+                    onClick={() => router.push(`/superadmin/tenants/${tenant.id}/users`)}
+                    className="text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Gestionar Usuarios
                   </button>
                 </td>
               </tr>

@@ -66,6 +66,7 @@ function NewAssetForm() {
         location: formData.location,
         status: formData.status,
         createdAt: new Date(),
+        createdBy: profile.id,
       };
 
       const docRef = await addDoc(collection(db, "assets"), newAsset);

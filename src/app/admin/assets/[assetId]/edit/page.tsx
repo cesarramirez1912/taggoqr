@@ -104,6 +104,8 @@ export default function EditAssetPage() {
         serialNumber: formData.serialNumber,
         location: formData.location,
         status: formData.status,
+        updatedBy: profile?.id,
+        updatedAt: new Date(),
       });
 
       router.push(`/a/${assetId}`);

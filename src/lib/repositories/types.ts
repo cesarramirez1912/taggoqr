@@ -2,6 +2,8 @@ export interface Tenant {
   id: string;
   name: string;
   subscriptionStatus: "active" | "trial" | "inactive";
+  maxUsers?: number;
+  logoUrl?: string;
   createdAt: Date;
 }
 
@@ -42,6 +44,9 @@ export interface Asset {
   location: string;
   status: "active" | "maintenance" | "inactive";
   createdAt: Date;
+  createdBy?: string;
+  updatedAt?: Date;
+  updatedBy?: string;
 }
 
 export interface Maintenance {
@@ -56,4 +61,7 @@ export interface Maintenance {
   usageMetricsSnapshot?: string; // Ej. "15500 km" en el momento del mantenimiento
   photos: string[];
   createdAt: Date;
+  createdBy?: string;
+  updatedAt?: Date;
+  updatedBy?: string;
 }
