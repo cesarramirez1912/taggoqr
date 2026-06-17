@@ -12,9 +12,14 @@ export async function createTenantWithAdmin(data: {
     // Si no se proporciona contraseña, genera una básica (o lanza error, según prefieras)
     const password = data.adminPassword || Math.random().toString(36).slice(-8);
 
+    // Transform username to email if it doesn't have @
+    const isEmail = data.adminEmail.includes('@');
+    const finalEmail = isEmail ? data.adminEmail.trim() : `${data.adminEmail.trim().toLowerCase()}@taggoqr.app`;
+    const username = isEmail ? undefined : data.adminEmail.trim();
+
     // 1. Crear el usuario en Firebase Authentication usando Admin SDK
     const userRecord = await adminAuth.createUser({
-      email: data.adminEmail,
+      email: finalEmail,
       password: password,
     });
 
@@ -33,7 +38,8 @@ export async function createTenantWithAdmin(data: {
       id: userRecord.uid,
       email: userRecord.email!,
       globalRole: "none",
-      tenantRoles: { [tenantRef.id]: "admin" }
+      tenantRoles: { [tenantRef.id]: "admin" },
+      username: username
     };
 
     // Usamos un batch para asegurar que ambos documentos se guarden a la vez
@@ -84,9 +90,13 @@ export async function createUserForTenant(data: {
 
     const password = data.password || Math.random().toString(36).slice(-8);
 
+    const isEmail = data.email.includes('@');
+    const finalEmail = isEmail ? data.email.trim() : `${data.email.trim().toLowerCase()}@taggoqr.app`;
+    const username = isEmail ? undefined : data.email.trim();
+
     // 1. Crear el usuario en Firebase Authentication usando Admin SDK
     const userRecord = await adminAuth.createUser({
-      email: data.email,
+      email: finalEmail,
       password: password,
     });
 
@@ -95,7 +105,8 @@ export async function createUserForTenant(data: {
       id: userRecord.uid,
       email: userRecord.email!,
       globalRole: "none",
-      tenantRoles: { [data.tenantId]: data.role }
+      tenantRoles: { [data.tenantId]: data.role },
+      username: username
     };
 
     await adminDb.collection("users").doc(userRecord.uid).set(profile);
@@ -110,13 +121,22 @@ export async function createUserForTenant(data: {
 export async function getUsersForTenant(tenantId: string) {
   try {
     const usersSnap = await adminDb.collection("users")
-      .where(`tenantRoles.${tenantId}`, "in", ["admin", "editor"])
+      .where(`tenantRoles.${tenantId}`, "in", ["admin", "editor", "operador"])
       .get();
       
-    const users = usersSnap.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    }));
+    const users = usersSnap.docs.map(doc => {
+      const data = doc.data();
+      let lastAccessAtStr = undefined;
+      if (data.lastAccessAt && typeof data.lastAccessAt.toDate === 'function') {
+        lastAccessAtStr = data.lastAccessAt.toDate().toISOString();
+      }
+      return {
+        ...data,
+        id: doc.id,
+        lastAccessAt: lastAccessAtStr
+      };
+    }).filter(u => u.globalRole !== "super_admin");
+    
     return { success: true, users };
   } catch (error: any) {
     console.error("Error fetching users for tenant:", error);
@@ -144,6 +164,33 @@ export async function removeUserFromTenant(uid: string, tenantId: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Error removing user from tenant:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function resetUserPassword(uid: string, newPassword?: string) {
+  try {
+    const password = newPassword || Math.random().toString(36).slice(-8);
+    
+    await adminAuth.updateUser(uid, {
+      password: password,
+    });
+    
+    return { success: true, password };
+  } catch (error: any) {
+    console.error("Error resetting user password:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateUserLastAccess(uid: string) {
+  try {
+    await adminDb.collection("users").doc(uid).set({
+      lastAccessAt: new Date()
+    }, { merge: true });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating last access:", error);
     return { success: false, error: error.message };
   }
 }

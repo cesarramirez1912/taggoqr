@@ -31,8 +31,11 @@ export default function LoginPage() {
     setError("");
 
     try {
+      const isEmail = email.includes('@');
+      const finalEmail = isEmail ? email.trim() : `${email.trim().toLowerCase()}@taggoqr.app`;
+
       // Intento real con Firebase
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, finalEmail, password);
       // La redirección ocurrirá por el useEffect al cambiar el estado del user
     } catch (err: any) {
       console.error(err);
@@ -49,13 +52,13 @@ export default function LoginPage() {
         
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Usuario, Número Único o Email</label>
             <input 
-              type="email" 
+              type="text" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="admin@tusistema.com"
+              placeholder="ej: operador123 o admin@sistema.com"
             />
           </div>
           <div>

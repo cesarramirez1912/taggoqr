@@ -42,18 +42,23 @@ export function ProtectedRoute({
     currentGlobalRole = profile.globalRole || "none";
   }
 
-  // Validación de roles globales
+  // Validación de roles globales y de tenant
   if (allowedRoles.length > 0) {
-    // Si la ruta requiere un rol (como super_admin o admin)
-    // Para simplificar: Si es super_admin, pasa.
-    // Si la ruta pide "admin" y tiene roles de tenant en el profile, pasa.
     const isSuperAdmin = currentGlobalRole === "super_admin";
-    const hasTenantRole = profile && profile.tenantRoles && Object.keys(profile.tenantRoles).length > 0;
     
-    const canAccess = isSuperAdmin || (allowedRoles.includes("admin") && hasTenantRole);
+    // Si es super_admin, tiene acceso a todo.
+    // Si no, verificamos si tiene algún rol en algún tenant que esté dentro de allowedRoles
+    let hasAllowedTenantRole = false;
+    
+    if (profile && profile.tenantRoles) {
+      const rolesUsuario = Object.values(profile.tenantRoles);
+      hasAllowedTenantRole = rolesUsuario.some(role => allowedRoles.includes(role as any));
+    }
+    
+    const canAccess = isSuperAdmin || hasAllowedTenantRole;
     
     if (!canAccess) {
-      return <div className="p-8 text-center text-red-500">Acceso Denegado. No tienes permisos.</div>;
+      return <div className="p-8 text-center text-red-500">Acceso Denegado. No tienes los permisos necesarios.</div>;
     }
   }
 

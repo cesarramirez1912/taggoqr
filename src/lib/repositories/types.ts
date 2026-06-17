@@ -4,6 +4,8 @@ export interface Tenant {
   subscriptionStatus: "active" | "trial" | "inactive";
   maxUsers?: number;
   logoUrl?: string;
+  haciendas?: string[];
+  operadores?: string[];
   createdAt: Date;
 }
 
@@ -11,7 +13,8 @@ export interface UserProfile {
   id: string; // Firebase Auth UID
   email: string;
   globalRole: "super_admin" | "none";
-  tenantRoles: Record<string, "admin" | "editor">; // tenantId -> role
+  tenantRoles: Record<string, "admin" | "editor" | "operador">; // tenantId -> role
+  lastAccessAt?: string; // ISO date string
 }
 
 export interface QRTag {
@@ -64,4 +67,17 @@ export interface Maintenance {
   createdBy?: string;
   updatedAt?: Date;
   updatedBy?: string;
+}
+
+export interface OperatorChecklist {
+  id: string;
+  tenantId: string;
+  assetId: string | null;
+  hacienda: string;
+  operador: string;
+  maquinaNombre: string;
+  fecha: string;
+  turno: "Mañana" | "Tarde" | "Noche";
+  horaInicio: string;
+  createdAt: Date;
 }

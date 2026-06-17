@@ -21,9 +21,18 @@ export default function AdminDashboardPage() {
   const [recentMaintenances, setRecentMaintenances] = useState<(Maintenance & { assetName?: string })[]>([]);
 
   useEffect(() => {
-    if (!profile || !profile.tenantRoles) return;
+    if (!profile) return;
+    
+    if (!profile.tenantRoles || Object.keys(profile.tenantRoles).length === 0) {
+      setLoading(false);
+      return;
+    }
+
     const tenantId = Object.keys(profile.tenantRoles)[0];
-    if (!tenantId) return;
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchDashboardData = async () => {
       try {

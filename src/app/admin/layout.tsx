@@ -42,6 +42,9 @@ export default function TenantAdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/qr" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/qr') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
               Generador de QRs
             </Link>
+            <Link href="/admin/checklists" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/checklists') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
+              Checklists
+            </Link>
             {isTenantAdmin && (
               <>
                 <Link href="/admin/users" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/users') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
@@ -71,6 +74,9 @@ export default function TenantAdminLayout({ children }: { children: React.ReactN
             </Link>
             <Link href="/admin/qr" className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/qr') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}>
               Generador de QRs
+            </Link>
+            <Link href="/admin/checklists" className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/checklists') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+              Checklists
             </Link>
             {isTenantAdmin && (
               <>

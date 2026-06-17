@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { Tenant, UserProfile } from "@/lib/repositories/types";
-import { createUserForTenant, updateTenantMaxUsers, getUsersForTenant, removeUserFromTenant } from "@/app/actions/tenantActions";
+import { createUserForTenant, updateTenantMaxUsers, getUsersForTenant, removeUserFromTenant, resetUserPassword } from "@/app/actions/tenantActions";
 
 export default function TenantUsersPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const router = useRouter();
@@ -26,6 +26,12 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
   const [newUserRole, setNewUserRole] = useState<"admin" | "editor">("editor");
   const [actionError, setActionError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Modal para reset de contraseña
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetTargetUid, setResetTargetUid] = useState("");
+  const [resetTargetEmail, setResetTargetEmail] = useState("");
+  const [customPassword, setCustomPassword] = useState("");
 
   const fetchData = async () => {
     try {
@@ -101,6 +107,30 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
     }
   };
 
+  const handleOpenResetModal = (uid: string, email: string) => {
+    setResetTargetUid(uid);
+    setResetTargetEmail(email);
+    setCustomPassword("");
+    setActionError("");
+    setIsResetModalOpen(true);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setActionError("");
+
+    const res = await resetUserPassword(resetTargetUid, customPassword.trim() || undefined);
+    
+    setIsSubmitting(false);
+    if (res.success) {
+      alert(`Contraseña actualizada con éxito.\nLa nueva contraseña para ${resetTargetEmail} es:\n\n${res.password}\n\nPor favor, cópiala y envíasela al usuario.`);
+      setIsResetModalOpen(false);
+    } else {
+      setActionError(res.error || "Error al resetear la contraseña.");
+    }
+  };
+
   if (loading) return <div className="p-8">Cargando datos...</div>;
   if (!tenant) return <div className="p-8">Empresa no encontrada</div>;
 
@@ -147,7 +177,7 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
             <tr>
-              <th className="p-4 font-medium">Email</th>
+              <th className="p-4 font-medium">Usuario / Email</th>
               <th className="p-4 font-medium">Cargo (Rol)</th>
               <th className="p-4 font-medium">Acciones</th>
             </tr>
@@ -155,7 +185,7 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
           <tbody className="divide-y divide-slate-100">
             {users.map(u => (
               <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 font-medium text-slate-900">{u.email}</td>
+                <td className="p-4 font-medium text-slate-900">{u.username || u.email}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase ${
                     u.tenantRoles[tenantId] === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
@@ -169,6 +199,12 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
                     className="text-red-600 hover:text-red-800 font-medium"
                   >
                     Quitar Acceso
+                  </button>
+                  <button 
+                    onClick={() => handleOpenResetModal(u.id, u.username || u.email)}
+                    className="ml-4 text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Cambiar Contraseña
                   </button>
                 </td>
               </tr>
@@ -220,12 +256,13 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
             
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usuario, Número Único o Email</label>
                 <input 
-                  type="email" 
+                  type="text" 
                   required
                   value={newUserEmail} 
                   onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="ej: operador123 o correo@empresa.com"
                   className="w-full p-2 border border-slate-300 rounded-lg"
                 />
               </div>
@@ -267,6 +304,52 @@ export default function TenantUsersPage({ params }: { params: Promise<{ tenantId
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
                 >
                   {isSubmitting ? 'Creando...' : 'Crear Usuario'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cambiar Contraseña */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-xl font-bold mb-2">Cambiar Contraseña</h3>
+            <p className="text-slate-600 mb-4 text-sm">
+              Para el usuario: <strong className="text-slate-900">{resetTargetEmail}</strong>
+            </p>
+            {actionError && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{actionError}</div>}
+            
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nueva Contraseña (Opcional)</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. NuevaContra123"
+                  value={customPassword} 
+                  onChange={(e) => setCustomPassword(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded-lg"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Si dejas este campo vacío, el sistema generará una contraseña aleatoria y te la mostrará al finalizar.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-8">
+                <button 
+                  type="button"
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Guardando...' : 'Cambiar Contraseña'}
                 </button>
               </div>
             </form>

@@ -10,6 +10,7 @@ export default function TenantSettingsPage() {
   const tenantId = profile?.tenantRoles ? Object.keys(profile.tenantRoles)[0] : null;
 
   const [logoUrl, setLogoUrl] = useState("");
+  const [haciendasStr, setHaciendasStr] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -17,7 +18,9 @@ export default function TenantSettingsPage() {
     if (tenantId) {
       getDoc(doc(db, "tenants", tenantId)).then(snap => {
         if (snap.exists()) {
-          setLogoUrl(snap.data().logoUrl || "");
+          const data = snap.data();
+          setLogoUrl(data.logoUrl || "");
+          if (data.haciendas) setHaciendasStr(data.haciendas.join(", "));
         }
         setLoading(false);
       });
@@ -30,8 +33,11 @@ export default function TenantSettingsPage() {
 
     setSaving(true);
     try {
+      const haciendas = haciendasStr.split(",").map(s => s.trim()).filter(s => s);
+
       await updateDoc(doc(db, "tenants", tenantId), {
-        logoUrl: logoUrl.trim()
+        logoUrl: logoUrl.trim(),
+        haciendas
       });
       alert("Ajustes guardados correctamente. Actualiza la página para ver los cambios.");
     } catch (err: any) {
@@ -49,9 +55,10 @@ export default function TenantSettingsPage() {
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
       <h2 className="text-2xl font-bold text-slate-900 mb-6">Ajustes de la Empresa</h2>
       
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-8">
+        {/* Logo */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-semibold text-slate-900 mb-1">
             URL del Logo de la Empresa
           </label>
           <input 
@@ -59,25 +66,47 @@ export default function TenantSettingsPage() {
             placeholder="https://ejemplo.com/mi-logo.png"
             value={logoUrl}
             onChange={e => setLogoUrl(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
           <p className="text-xs text-slate-500 mt-2">
             Ingresa un enlace directo a la imagen de tu logo. Se mostrará en el menú lateral.
           </p>
-          
           {logoUrl && (
-            <div className="mt-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
-              <p className="text-xs font-medium text-slate-500 mb-2 uppercase">Vista Previa:</p>
+            <div className="mt-4 p-4 border border-slate-100 rounded-lg bg-slate-50">
+              <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">Vista Previa:</p>
               <img src={logoUrl} alt="Vista previa logo" className="max-h-16 object-contain" />
             </div>
           )}
         </div>
 
-        <div className="pt-4 flex justify-end">
+        <div className="border-t border-slate-100 pt-6">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">Configuración de Checklists</h3>
+          
+          <div className="space-y-6">
+            {/* Haciendas */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-1">
+                Haciendas (Separadas por comas)
+              </label>
+              <textarea 
+                rows={2}
+                placeholder="Modulo 1, Modulo 2, Estancia Principal..."
+                value={haciendasStr}
+                onChange={e => setHaciendasStr(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                Estas opciones aparecerán en el menú desplegable "Hacienda" cuando el operador llene el checklist.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-6 flex justify-end border-t border-slate-100">
           <button 
             type="submit"
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             {saving ? "Guardando..." : "Guardar Ajustes"}
           </button>

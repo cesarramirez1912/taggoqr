@@ -144,6 +144,16 @@ export default function PublicAssetViewPage() {
               </button>
             </div>
           )}
+
+          {/* Acciones para Operadores */}
+          <div className={`pt-6 flex flex-wrap gap-3 ${!canEdit ? 'mt-8 border-t border-slate-100' : 'mt-3'}`}>
+            <button 
+              onClick={() => router.push(`/a/${assetId}/checklist`)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm w-full md:w-auto text-center"
+            >
+              📋 Checklist Diario
+            </button>
+          </div>
         </div>
 
         {/* Historial de Mantenimientos */}

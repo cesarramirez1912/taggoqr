@@ -20,7 +20,7 @@ export default function TenantAdminUsersPage() {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserRole, setNewUserRole] = useState<"admin" | "editor">("editor");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "editor" | "operador">("editor");
   const [actionError, setActionError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -97,7 +97,9 @@ export default function TenantAdminUsersPage() {
   if (!tenant) return <div className="p-8">Empresa no encontrada</div>;
 
   const maxUsers = tenant.maxUsers || 1;
-  const canAddMore = users.length < maxUsers;
+  // Operadores don't count towards the limit
+  const nonOperatorUsersCount = users.filter(u => u.tenantRoles[tenantId] !== "operador").length;
+  const canAddMore = nonOperatorUsersCount < maxUsers;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -107,7 +109,8 @@ export default function TenantAdminUsersPage() {
             Gestionar Usuarios
           </h2>
           <p className="text-slate-500 mt-1">
-            Límite actual: <strong>{maxUsers} usuarios</strong> (Ocupados: {users.length})
+            Límite de Admins/Editores: <strong>{maxUsers} usuarios</strong> (Ocupados: {nonOperatorUsersCount})
+            <br/><span className="text-sm">Los usuarios con rol "Operador" son ilimitados y gratuitos.</span>
           </p>
         </div>
         <div className="flex gap-3">
@@ -130,7 +133,7 @@ export default function TenantAdminUsersPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
             <tr>
-              <th className="p-4 font-medium">Email</th>
+              <th className="p-4 font-medium">Usuario / Email</th>
               <th className="p-4 font-medium">Cargo (Rol)</th>
               <th className="p-4 font-medium">Acciones</th>
             </tr>
@@ -139,12 +142,14 @@ export default function TenantAdminUsersPage() {
             {users.map(u => (
               <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                 <td className="p-4 font-medium text-slate-900">
-                  {u.email}
+                  {u.username || u.email}
                   {u.id === profile?.id && <span className="ml-2 text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded">Tú</span>}
                 </td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase ${
-                    u.tenantRoles[tenantId] === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                    u.tenantRoles[tenantId] === 'admin' ? 'bg-purple-100 text-purple-700' : 
+                    u.tenantRoles[tenantId] === 'editor' ? 'bg-blue-100 text-blue-700' : 
+                    'bg-emerald-100 text-emerald-700'
                   }`}>
                     {u.tenantRoles[tenantId]}
                   </span>
@@ -174,12 +179,13 @@ export default function TenantAdminUsersPage() {
             
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usuario, Número Único o Email</label>
                 <input 
-                  type="email" 
+                  type="text" 
                   required
                   value={newUserEmail} 
                   onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="ej: operador123 o correo@empresa.com"
                   className="w-full p-2 border border-slate-300 rounded-lg"
                 />
               </div>
@@ -199,10 +205,11 @@ export default function TenantAdminUsersPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cargo (Rol)</label>
                 <select 
                   value={newUserRole} 
-                  onChange={(e) => setNewUserRole(e.target.value as "admin" | "editor")}
+                  onChange={(e) => setNewUserRole(e.target.value as "admin" | "editor" | "operador")}
                   className="w-full p-2 border border-slate-300 rounded-lg"
                 >
-                  <option value="editor">Editor (Puede crear y modificar activos/mantenimientos)</option>
+                  <option value="operador">Operador (Solo puede llenar checklists desde el celular. No consume cupos)</option>
+                  <option value="editor">Editor (Puede crear y modificar máquinas/mantenimientos)</option>
                   <option value="admin">Administrador (Puede crear usuarios y editar ajustes)</option>
                 </select>
               </div>

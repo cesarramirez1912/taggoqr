@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, setDoc, query, where, getDoc } from "firebase/firestore";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 interface TenantData {
   id: string;
@@ -15,6 +16,7 @@ interface TenantData {
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
+  const { user, profile } = useAuth();
   const [tenants, setTenants] = useState<TenantData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +39,29 @@ export default function SuperAdminDashboard() {
     const newStatus = currentStatus === "active" ? "disabled" : "active";
     await updateDoc(doc(db, "tenants", tenantId), { subscriptionStatus: newStatus });
     fetchTenants();
+  };
+
+  const handleImpersonate = async (tenantId: string) => {
+    if (!user?.uid) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        await updateDoc(userRef, {
+          tenantRoles: { [tenantId]: "admin" }
+        });
+      } else {
+        await setDoc(userRef, {
+          tenantRoles: { [tenantId]: "admin" },
+          globalRole: "super_admin",
+          email: user.email,
+        });
+      }
+      router.push("/admin");
+    } catch (e) {
+      console.error("Error impersonating tenant:", e);
+      alert("Error al entrar a la empresa.");
+    }
   };
 
   if (loading) return <div className="p-8">Cargando empresas...</div>;
@@ -87,6 +112,12 @@ export default function SuperAdminDashboard() {
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Gestionar Usuarios
+                  </button>
+                  <button 
+                    onClick={() => handleImpersonate(tenant.id)}
+                    className="text-emerald-600 hover:text-emerald-800 font-medium font-bold"
+                  >
+                    Entrar al Panel
                   </button>
                 </td>
               </tr>
