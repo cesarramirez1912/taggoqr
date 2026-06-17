@@ -12,7 +12,7 @@ export function ProtectedRoute({
   allowedRoles = [] 
 }: { 
   children: React.ReactNode; 
-  allowedRoles?: ("super_admin" | "admin" | "editor")[];
+  allowedRoles?: ("super_admin" | "admin" | "editor" | "operador")[];
 }) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();

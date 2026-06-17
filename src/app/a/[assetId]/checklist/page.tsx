@@ -80,7 +80,7 @@ function OperatorChecklistForm() {
             const usersRes = await getUsersForTenant(assetData.tenantId);
             if (usersRes.success && usersRes.users) {
               // Filtramos solo los que son operadores
-              const ops = usersRes.users.filter((u: any) => u.tenantRoles[assetData.tenantId] === "operador");
+              const ops = usersRes.users.filter((u: any) => u.tenantRoles[assetData.tenantId] === "operador") as UserProfile[];
               setOperadoresList(ops);
             }
           }

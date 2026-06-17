@@ -69,7 +69,7 @@ export async function createUserForTenant(data: {
   tenantId: string;
   email: string;
   password?: string;
-  role: "admin" | "editor";
+  role: "admin" | "editor" | "operador";
 }) {
   try {
     const tenantSnap = await adminDb.collection("tenants").doc(data.tenantId).get();
@@ -81,7 +81,7 @@ export async function createUserForTenant(data: {
 
     // Verificar usuarios actuales de este tenant
     const usersSnap = await adminDb.collection("users")
-      .where(`tenantRoles.${data.tenantId}`, "in", ["admin", "editor"])
+      .where(`tenantRoles.${data.tenantId}`, "in", ["admin", "editor", "operador"])
       .get();
       
     if (usersSnap.size >= maxUsers) {
@@ -134,7 +134,7 @@ export async function getUsersForTenant(tenantId: string) {
         ...data,
         id: doc.id,
         lastAccessAt: lastAccessAtStr
-      };
+      } as UserProfile;
     }).filter(u => u.globalRole !== "super_admin");
     
     return { success: true, users };

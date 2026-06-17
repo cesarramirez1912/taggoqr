@@ -15,6 +15,7 @@ export interface UserProfile {
   globalRole: "super_admin" | "none";
   tenantRoles: Record<string, "admin" | "editor" | "operador">; // tenantId -> role
   lastAccessAt?: string; // ISO date string
+  username?: string;
 }
 
 export interface QRTag {

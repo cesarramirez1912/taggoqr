@@ -32,8 +32,8 @@ export default function AdminChecklistsPage() {
         
         // Sort locally descending
         list.sort((a, b) => {
-          const dateA = a.createdAt?.toMillis?.() || new Date(a.fecha).getTime();
-          const dateB = b.createdAt?.toMillis?.() || new Date(b.fecha).getTime();
+          const dateA = (a.createdAt as any)?.toMillis?.() || new Date(a.fecha).getTime();
+          const dateB = (b.createdAt as any)?.toMillis?.() || new Date(b.fecha).getTime();
           return dateB - dateA;
         });
 
