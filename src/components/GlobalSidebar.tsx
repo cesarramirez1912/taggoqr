@@ -15,7 +15,7 @@ export function GlobalSidebar() {
   if (!isSuperAdmin) return null;
 
   return (
-    <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col">
+    <aside className="w-64 bg-slate-900 text-white p-6 hidden md:flex flex-col print:hidden">
       <h1 className="text-xl font-bold mb-8 tracking-tight text-white/90">TaggoQR</h1>
       <nav className="flex flex-col space-y-4">
         <Link href="/superadmin" className="hover:text-purple-400 transition-colors font-medium">Panel Super Admin</Link>

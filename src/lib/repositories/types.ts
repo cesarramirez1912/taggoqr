@@ -1,6 +1,8 @@
 export interface Tenant {
   id: string;
   name: string;
+  country?: string;
+  industry?: string;
   subscriptionStatus: "active" | "trial" | "inactive";
   maxUsers?: number;
   logoUrl?: string;
@@ -35,13 +37,18 @@ export interface Asset {
   name: string;
   type: "machine" | "vehicle" | "tool";
   
-  // Campos agrícolas / vehiculares
+  // Campos agrícolas / vehiculares generales
   brand: string;
   model: string;
   year: number;
   vinOrChassis: string;
   usageMetrics: string; // ej. "15000 km", "450 hs"
   nextMaintenanceDate: string; // ISO date o texto
+
+  // Campos específicos para servicios a terceros (Automotriz, Talleres)
+  licensePlate?: string; // Placa / Patente
+  customerName?: string;
+  customerPhone?: string;
 
   qrCodeUrl: string;
   serialNumber: string;
@@ -81,4 +88,105 @@ export interface OperatorChecklist {
   turno: "Mañana" | "Tarde" | "Noche";
   horaInicio: string;
   createdAt: Date;
+}
+
+export interface ServiceOrder {
+  id: string;
+  tenantId: string;
+  assetId: string;
+  type: string; // ej. "Limpieza de pico", "Cambio de aceite"
+  status: "pending" | "in_progress" | "completed";
+  description?: string;
+  operatorId?: string; // UID o nombre del operador
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface Customer {
+  id: string;
+  tenantId: string;
+  name: string;
+  documentId?: string; // RUC, CUIT, DNI, etc.
+  phone?: string;
+  email?: string;
+  address?: string;
+  createdAt: Date;
+  createdBy?: string;
+}
+
+export interface Item {
+  id: string;
+  tenantId: string;
+  type: "product" | "service";
+  name: string;
+  description?: string;
+  price: number;
+  currency: string; // "USD", "PYG", "EUR"
+  createdAt: Date;
+}
+
+export interface QuoteItem {
+  id?: string;
+  itemId?: string; // Referencia al catálogo, si aplica
+  name: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  total?: number;
+}
+
+export interface Quote {
+  id: string;
+  tenantId: string;
+  customerId: string;
+  customerName: string; // Desnormalizado para búsquedas rápidas
+  assetId?: string; // Vehículo opcional
+  assetName?: string; // Desnormalizado
+  items: QuoteItem[];
+  subtotal?: number;
+  taxAmount?: number;
+  currency: string;
+  total: number;
+  status: "draft" | "sent" | "approved" | "rejected" | "invoiced";
+  validUntil?: Date;
+  notes?: string;
+  createdAt: Date;
+  createdBy?: string;
+  updatedAt?: Date;
+  updatedBy?: string;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  method: "cash" | "card" | "transfer" | "other";
+  date: Date;
+  reference?: string; // Ej. Nro de transferencia
+  createdBy?: string;
+}
+
+export interface SalesOrder {
+  id: string;
+  tenantId: string;
+  quoteId?: string;
+  customerId: string;
+  customerName: string;
+  assetId?: string;
+  assetName?: string;
+  items: QuoteItem[];
+  subtotal?: number;
+  taxAmount?: number;
+  currency: string;
+  total: number;
+  status: "pending" | "paid" | "partial" | "cancelled";
+  
+  // Historial de cobros
+  payments: Payment[];
+  
+  notes?: string;
+  createdAt: Date;
+  createdBy?: string;
+  updatedAt?: Date;
+  updatedBy?: string;
 }

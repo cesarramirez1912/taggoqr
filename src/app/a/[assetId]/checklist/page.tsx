@@ -8,6 +8,7 @@ import { Asset, Tenant, UserProfile } from "@/lib/repositories/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { getUsersForTenant } from "@/app/actions/tenantActions";
+import { getIndustryTerms } from "@/lib/utils/industryTerms";
 
 export default function OperatorChecklistPage() {
   return (
@@ -41,6 +42,7 @@ function OperatorChecklistForm() {
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState<"Mañana" | "Tarde" | "Noche" | "">("");
   const [horaInicio, setHoraInicio] = useState("");
+  const [tipoTrabajo, setTipoTrabajo] = useState("");
 
   const isAdminOrEditor = profile?.globalRole === "super_admin" || 
     (profile?.tenantRoles && Object.values(profile.tenantRoles).some(r => r === "admin" || r === "editor"));
@@ -64,6 +66,14 @@ function OperatorChecklistForm() {
         }
 
         const assetData = { ...assetSnap.data(), id: assetSnap.id } as Asset;
+        
+        // Verificar permisos estrictos: solo usuarios del Tenant dueño del activo pueden agregar servicios
+        if (!profile?.tenantRoles?.[assetData.tenantId] && profile?.globalRole !== "super_admin") {
+          setError("No tienes permisos para registrar servicios en este activo. Solo el personal de la empresa propietaria puede hacerlo.");
+          setLoading(false);
+          return;
+        }
+
         setAsset(assetData);
 
         // 2. Fetch Tenant (to get dynamic options)
@@ -74,6 +84,12 @@ function OperatorChecklistForm() {
           const tenantData = tenantSnap.data() as Tenant;
           setTenant(tenantData);
           setHaciendaOptions(tenantData.haciendas || []);
+          
+          // Set first dynamic service option as default if not already set
+          const terms = getIndustryTerms(tenantData.industry);
+          if (terms.serviceOptions.length > 0) {
+            setTipoTrabajo(terms.serviceOptions[0]);
+          }
 
           // 3. Si es Admin/Editor, traemos la lista de operadores
           if (isAdminOrEditor) {
@@ -135,6 +151,7 @@ function OperatorChecklistForm() {
         fecha,
         turno,
         horaInicio,
+        tipoTrabajo,
         createdAt: serverTimestamp(),
       };
 
@@ -150,6 +167,8 @@ function OperatorChecklistForm() {
 
   if (loading || profile === undefined) return <div className="min-h-screen flex items-center justify-center bg-slate-50">Cargando...</div>;
   if (error && !asset) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-red-500">{error}</div>;
+
+  const terms = getIndustryTerms(tenant?.industry);
 
   if (success) {
     return (
@@ -175,8 +194,8 @@ function OperatorChecklistForm() {
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-blue-600 p-6 text-white">
-          <h1 className="text-2xl font-bold">Checklist Diario</h1>
-          <p className="text-blue-100 mt-1">Registra las condiciones de operación</p>
+          <h1 className="text-2xl font-bold">Registro de Servicio</h1>
+          <p className="text-blue-100 mt-1">Registra trabajos, mantenimientos o checklists</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -203,9 +222,9 @@ function OperatorChecklistForm() {
                 className="w-full border-blue-200 rounded-lg px-4 py-2.5 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 required
               >
-                <option value="" disabled>Selecciona el Operador Responsable</option>
+                <option value="" disabled>Selecciona el {terms.operator}</option>
                 {operadoresList.length === 0 ? (
-                  <option value="" disabled>No hay operadores creados en Ajustes</option>
+                  <option value="" disabled>No hay cuentas de {terms.operator} creadas</option>
                 ) : (
                   operadoresList.map(op => <option key={op.id} value={op.email}>{op.email}</option>)
                 )}
@@ -218,7 +237,7 @@ function OperatorChecklistForm() {
 
           {/* Máquina (Readonly) */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Máquina *</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{terms.asset} *</label>
             <input 
               type="text" 
               value={asset?.name || ""} 
@@ -229,14 +248,14 @@ function OperatorChecklistForm() {
 
           {/* Hacienda */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Hacienda *</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{terms.branch} *</label>
             <select 
               value={hacienda} 
               onChange={(e) => setHacienda(e.target.value)}
               className="w-full border-slate-200 rounded-lg px-4 py-2.5 focus:ring-blue-500 focus:border-blue-500 bg-white"
               required
             >
-              <option value="" disabled>Seleccionar Hacienda</option>
+              <option value="" disabled>Seleccionar {terms.branch}</option>
               {haciendaOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
               <option value="Otro">Otro...</option>
             </select>
@@ -250,6 +269,21 @@ function OperatorChecklistForm() {
                 required
               />
             )}
+          </div>
+
+          {/* Tipo de Trabajo */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo de Servicio / Trabajo *</label>
+            <select 
+              value={tipoTrabajo} 
+              onChange={(e) => setTipoTrabajo(e.target.value)}
+              className="w-full border-slate-200 rounded-lg px-4 py-2.5 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              required
+            >
+              {terms.serviceOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
 
           {/* Fecha */}
@@ -287,17 +321,18 @@ function OperatorChecklistForm() {
 
           {/* Registro de Horas */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Hora de Inicio (Horómetro) *</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              {tenant?.industry === "Automotriz" ? "Kilometraje de ingreso" : "Hora de Inicio (Horómetro)"} *
+            </label>
             <input 
               type="number" 
               step="0.1"
-              placeholder="Ej. 1500" 
+              placeholder={tenant?.industry === "Automotriz" ? "Ej. 45000 km" : "Ej. 1500 hs"} 
               value={horaInicio}
               onChange={(e) => setHoraInicio(e.target.value)}
               className="w-full border-slate-200 rounded-lg px-4 py-2.5 focus:ring-blue-500 focus:border-blue-500"
               required
             />
-            <p className="text-xs text-slate-500 mt-1">Registrar las horas trabajadas o kilometraje al inicio.</p>
           </div>
 
           <div className="pt-4 flex gap-4">

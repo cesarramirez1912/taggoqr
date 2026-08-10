@@ -9,7 +9,7 @@ export function GlobalHeader() {
   if (loading || !user) return null;
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 shadow-sm">
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 shadow-sm print:hidden">
       <div className="flex-1"></div>
       <div className="flex items-center space-x-6">
         <span className="text-sm font-medium text-slate-500">{user.email}</span>

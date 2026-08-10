@@ -27,7 +27,7 @@ export default function QRGeneratorPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <div>
+      <div className="print:hidden">
         <h2 className="text-2xl font-bold text-slate-900">Generador de QRs Dinámicos</h2>
         <p className="text-slate-500 mt-1">Genera e imprime etiquetas QR vacías. Luego pégalas en tus activos y escanéalas para asignarles información.</p>
       </div>
@@ -60,14 +60,32 @@ export default function QRGeneratorPage() {
       </div>
 
       {generatedQRs.length > 0 && (
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 print:grid-cols-4">
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 print:border-none print:shadow-none print:p-0 print:m-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 print:grid-cols-4 print:gap-4">
             {generatedQRs.map(qr => (
-              <div key={qr.id} className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 rounded-xl">
-                {/* Asumimos que la URL pública base será el dominio actual + /q/ + id */}
-                <QRCodeSVG value={`https://taggoqr.app/q/${qr.id}`} size={120} />
-                <span className="mt-3 font-mono text-xs text-slate-500">{qr.id}</span>
-                <span className="mt-1 text-[10px] font-bold text-slate-400">TaggoQR</span>
+              <div key={qr.id} className="flex flex-col items-center justify-start bg-white border-2 border-slate-200 rounded-2xl overflow-hidden print:border-slate-300 print:shadow-none shadow-md hover:shadow-lg transition-shadow" style={{ width: '100%', maxWidth: '200px', margin: '0 auto' }}>
+                {/* Header Sticker */}
+                <div className="bg-slate-900 w-full py-3 flex flex-col items-center justify-center border-b-4 border-blue-500">
+                  <span className="text-white font-black tracking-widest text-lg leading-none">TAGGO<span className="text-blue-500">QR</span></span>
+                  <span className="text-slate-400 text-[9px] uppercase tracking-[0.2em] mt-1 font-semibold">Historial Digital</span>
+                </div>
+                
+                {/* Body Sticker */}
+                <div className="flex-1 flex flex-col items-center justify-center w-full p-4 bg-slate-50">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm mb-3">
+                    <QRCodeSVG 
+                      value={`https://taggoqr.app/q/${qr.id}`} 
+                      size={130} 
+                      level="H" // High error correction level for better scanning
+                      fgColor="#0f172a" // slate-900
+                    />
+                  </div>
+                  
+                  <div className="text-center w-full bg-slate-200 py-1.5 rounded-md">
+                    <span className="block text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-0.5">Escanear para INFO</span>
+                    <span className="font-mono text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-300">{qr.id.toUpperCase()}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

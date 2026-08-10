@@ -3,10 +3,22 @@
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { UserProfile, Tenant } from "@/lib/repositories/types";
 
+function translateFirebaseError(error: any): string {
+  const code = error.code || "";
+  if (code === "auth/email-already-exists") return "El correo electrónico o usuario ya está en uso.";
+  if (code === "auth/invalid-email") return "El formato del correo electrónico no es válido.";
+  if (code === "auth/weak-password") return "La contraseña debe tener al menos 6 caracteres.";
+  if (code === "auth/user-not-found") return "Usuario no encontrado.";
+  if (code === "auth/invalid-credential") return "Credenciales inválidas.";
+  return error.message || "Ha ocurrido un error inesperado.";
+}
+
 export async function createTenantWithAdmin(data: {
   tenantName: string;
   adminEmail: string;
   adminPassword?: string;
+  country?: string;
+  industry?: string;
 }) {
   try {
     // Si no se proporciona contraseña, genera una básica (o lanza error, según prefieras)
@@ -28,6 +40,8 @@ export async function createTenantWithAdmin(data: {
     const newTenant: Tenant = {
       id: tenantRef.id,
       name: data.tenantName,
+      country: data.country,
+      industry: data.industry,
       subscriptionStatus: "active",
       maxUsers: 3,
       createdAt: new Date(),
@@ -39,8 +53,10 @@ export async function createTenantWithAdmin(data: {
       email: userRecord.email!,
       globalRole: "none",
       tenantRoles: { [tenantRef.id]: "admin" },
-      username: username
     };
+    if (username) {
+      profile.username = username;
+    }
 
     // Usamos un batch para asegurar que ambos documentos se guarden a la vez
     const batch = adminDb.batch();
@@ -51,7 +67,7 @@ export async function createTenantWithAdmin(data: {
     return { success: true, tenantId: tenantRef.id };
   } catch (error: any) {
     console.error("Error creando tenant y admin:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -61,7 +77,7 @@ export async function updateTenantMaxUsers(tenantId: string, maxUsers: number) {
     return { success: true };
   } catch (error: any) {
     console.error("Error updating max users:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -106,15 +122,17 @@ export async function createUserForTenant(data: {
       email: userRecord.email!,
       globalRole: "none",
       tenantRoles: { [data.tenantId]: data.role },
-      username: username
     };
+    if (username) {
+      profile.username = username;
+    }
 
     await adminDb.collection("users").doc(userRecord.uid).set(profile);
 
     return { success: true, uid: userRecord.uid, password };
   } catch (error: any) {
     console.error("Error creando usuario para tenant:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -140,7 +158,7 @@ export async function getUsersForTenant(tenantId: string) {
     return { success: true, users };
   } catch (error: any) {
     console.error("Error fetching users for tenant:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -164,7 +182,7 @@ export async function removeUserFromTenant(uid: string, tenantId: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Error removing user from tenant:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -179,7 +197,7 @@ export async function resetUserPassword(uid: string, newPassword?: string) {
     return { success: true, password };
   } catch (error: any) {
     console.error("Error resetting user password:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }
 
@@ -191,6 +209,6 @@ export async function updateUserLastAccess(uid: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Error updating last access:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: translateFirebaseError(error) };
   }
 }

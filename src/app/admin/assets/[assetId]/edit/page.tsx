@@ -5,7 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import { Asset } from "@/lib/repositories/types";
+import { Asset, Tenant } from "@/lib/repositories/types";
+import { getIndustryTerms } from "@/lib/utils/industryTerms";
 
 export default function EditAssetPage() {
   const params = useParams();
@@ -26,11 +27,19 @@ export default function EditAssetPage() {
     usageMetrics: "",
     nextMaintenanceDate: "",
     status: "active" as Asset["status"],
+    licensePlate: "",
+    customerName: "",
+    customerPhone: "",
+    qrTagId: "",
   });
   
+  const [newQrTagId, setNewQrTagId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+
+  const terms = getIndustryTerms(tenant?.industry);
 
   useEffect(() => {
     const fetchAsset = async () => {
@@ -71,7 +80,17 @@ export default function EditAssetPage() {
           usageMetrics: data.usageMetrics || "",
           nextMaintenanceDate: data.nextMaintenanceDate || "",
           status: data.status || "active",
+          licensePlate: data.licensePlate || "",
+          customerName: data.customerName || "",
+          customerPhone: data.customerPhone || "",
+          qrTagId: data.qrTagId || "",
         });
+
+        // Get tenant to determine industry
+        const tenantSnap = await getDoc(doc(db, "tenants", data.tenantId));
+        if (tenantSnap.exists()) {
+          setTenant(tenantSnap.data() as Tenant);
+        }
       } catch (err: any) {
         console.error(err);
         setError("Error al cargar los datos.");
@@ -90,6 +109,28 @@ export default function EditAssetPage() {
     setError("");
 
     try {
+      let finalQrTagId = formData.qrTagId;
+      if (newQrTagId && newQrTagId !== formData.qrTagId) {
+        // Enlazar nuevo QR
+        await updateDoc(doc(db, "qrTags", newQrTagId), {
+          assetId: assetId,
+          status: "assigned"
+        });
+        
+        // Liberar QR viejo si tenía
+        if (formData.qrTagId) {
+          try {
+            await updateDoc(doc(db, "qrTags", formData.qrTagId), {
+              assetId: null,
+              status: "printed"
+            });
+          } catch (e) {
+            console.warn("No se pudo liberar el QR anterior", e);
+          }
+        }
+        finalQrTagId = newQrTagId;
+      }
+
       const docRef = doc(db, "assets", assetId as string);
       await updateDoc(docRef, {
         customId: formData.customId,
@@ -104,6 +145,10 @@ export default function EditAssetPage() {
         serialNumber: formData.serialNumber,
         location: formData.location,
         status: formData.status,
+        licensePlate: formData.licensePlate,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        qrTagId: finalQrTagId,
         updatedBy: profile?.id,
         updatedAt: new Date(),
       });
@@ -124,7 +169,7 @@ export default function EditAssetPage() {
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-600">← Volver</button>
-        <h2 className="text-2xl font-bold text-slate-900">Editar Activo</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Editar {terms.asset}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -152,14 +197,14 @@ export default function EditAssetPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Activo</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de {terms.asset}</label>
               <select 
                 value={formData.type}
                 onChange={e => setFormData({...formData, type: e.target.value as Asset["type"]})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="machine">Máquina / Pesada</option>
                 <option value="vehicle">Vehículo</option>
+                <option value="machine">Máquina / Pesada</option>
                 <option value="tool">Herramienta / Equipo Pequeño</option>
               </select>
             </div>
@@ -187,9 +232,52 @@ export default function EditAssetPage() {
           </div>
         </div>
 
-        {/* SECCIÓN 2: Datos del Vehículo / Máquina */}
+        {/* SECCIÓN 2: Datos Específicos (Cliente / Patente) si aplica */}
+        {(terms.hasCustomer || terms.hasLicensePlate) && (
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos del {terms.hasCustomer ? "Cliente y Vehículo" : "Vehículo"}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {terms.hasCustomer && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Cliente / Dueño</label>
+                    <input 
+                      type="text" 
+                      value={formData.customerName}
+                      onChange={e => setFormData({...formData, customerName: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono del Cliente</label>
+                    <input 
+                      type="text" 
+                      value={formData.customerPhone}
+                      onChange={e => setFormData({...formData, customerPhone: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </>
+              )}
+              {terms.hasLicensePlate && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Placa / Patente *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.licensePlate}
+                    onChange={e => setFormData({...formData, licensePlate: e.target.value.toUpperCase()})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SECCIÓN 3: Datos Técnicos */}
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos del Vehículo / Máquina</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos Técnicos ({terms.asset})</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>
@@ -262,6 +350,24 @@ export default function EditAssetPage() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN 4: Código QR */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Código QR</h3>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Vincular nuevo Código QR (Dejar en blanco para mantener el actual)</label>
+            <input 
+              type="text" 
+              placeholder="Ej. qr_123456"
+              value={newQrTagId}
+              onChange={e => setNewQrTagId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+            />
+            {formData.qrTagId && !newQrTagId && (
+              <p className="text-xs text-slate-500 mt-2">QR Actual: <span className="font-mono bg-slate-100 px-2 py-1 rounded">{formData.qrTagId}</span></p>
+            )}
           </div>
         </div>
 

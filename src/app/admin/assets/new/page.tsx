@@ -3,9 +3,10 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db } from "@/lib/firebase/config";
-import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import { Asset } from "@/lib/repositories/types";
+import { Asset, Tenant } from "@/lib/repositories/types";
+import { getIndustryTerms } from "@/lib/utils/industryTerms";
 
 function NewAssetForm() {
   const searchParams = useSearchParams();
@@ -26,9 +27,27 @@ function NewAssetForm() {
     usageMetrics: "",
     nextMaintenanceDate: "",
     status: "active" as Asset["status"],
+    licensePlate: "",
+    customerName: "",
+    customerPhone: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+
+  useState(() => {
+    // Fetch tenant on mount to know the industry
+    if (profile && profile.tenantRoles) {
+      const tenantId = Object.keys(profile.tenantRoles)[0];
+      if (tenantId) {
+        getDoc(doc(db, "tenants", tenantId)).then(snap => {
+          if (snap.exists()) setTenant(snap.data() as Tenant);
+        });
+      }
+    }
+  });
+
+  const terms = getIndustryTerms(tenant?.industry);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +84,9 @@ function NewAssetForm() {
         serialNumber: formData.serialNumber,
         location: formData.location,
         status: formData.status,
+        licensePlate: formData.licensePlate,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
         createdAt: new Date(),
         createdBy: profile.id,
       };
@@ -91,7 +113,7 @@ function NewAssetForm() {
 
   return (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-      <h2 className="text-2xl font-bold text-slate-900 mb-2">Registrar Nuevo Activo</h2>
+      <h2 className="text-2xl font-bold text-slate-900 mb-2">Registrar Nuevo {terms.asset}</h2>
       
       {qrId ? (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 flex items-center">
@@ -99,7 +121,7 @@ function NewAssetForm() {
           <span className="font-mono bg-white px-2 py-1 rounded text-sm">{qrId}</span>
         </div>
       ) : (
-        <p className="text-slate-500 mb-6">Completa los datos del activo. Puedes asignarle un código QR después.</p>
+        <p className="text-slate-500 mb-6">Completa los datos del {terms.asset.toLowerCase()}. Puedes asignarle un código QR después.</p>
       )}
 
       {error && <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>}
@@ -132,14 +154,14 @@ function NewAssetForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Activo</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de {terms.asset}</label>
               <select 
                 value={formData.type}
                 onChange={e => setFormData({...formData, type: e.target.value as Asset["type"]})}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="machine">Máquina / Pesada</option>
                 <option value="vehicle">Vehículo</option>
+                <option value="machine">Máquina / Pesada</option>
                 <option value="tool">Herramienta / Equipo Pequeño</option>
               </select>
             </div>
@@ -156,9 +178,55 @@ function NewAssetForm() {
           </div>
         </div>
 
-        {/* SECCIÓN 2: Datos del Vehículo / Máquina */}
+        {/* SECCIÓN 2: Datos Específicos (Cliente / Patente) si aplica */}
+        {(terms.hasCustomer || terms.hasLicensePlate) && (
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos del {terms.hasCustomer ? "Cliente y Vehículo" : "Vehículo"}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {terms.hasCustomer && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Cliente / Dueño</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Juan Pérez"
+                      value={formData.customerName}
+                      onChange={e => setFormData({...formData, customerName: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono del Cliente</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej. +595 981..."
+                      value={formData.customerPhone}
+                      onChange={e => setFormData({...formData, customerPhone: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </>
+              )}
+              {terms.hasLicensePlate && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Placa / Patente *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Ej. ABC 123"
+                    value={formData.licensePlate}
+                    onChange={e => setFormData({...formData, licensePlate: e.target.value.toUpperCase()})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SECCIÓN 3: Datos Técnicos */}
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos del Vehículo / Máquina</h3>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-100 pb-2">Datos Técnicos ({terms.asset})</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Marca</label>
@@ -252,7 +320,7 @@ function NewAssetForm() {
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-8 py-2 rounded-lg font-medium transition-colors shadow-sm"
           >
-            {loading ? "Guardando..." : "Guardar Activo"}
+            {loading ? "Guardando..." : `Guardar ${terms.asset}`}
           </button>
         </div>
       </form>

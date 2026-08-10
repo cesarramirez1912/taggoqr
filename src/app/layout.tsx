@@ -8,8 +8,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SaaS Gestión de Activos",
-  description: "Plataforma de gestión de vehículos, máquinas y equipos con QR.",
+  title: "TaggoQR - Software de Gestión de Activos",
+  description: "Plataforma líder para la gestión de vehículos, maquinarias y mantenimientos mediante etiquetas QR inteligentes.",
 };
 
 export default function RootLayout({

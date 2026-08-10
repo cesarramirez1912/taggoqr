@@ -73,5 +73,34 @@ service cloud.firestore {
       allow create: if hasTenantAccess(request.resource.data.tenantId);
       allow update, delete: if hasTenantAccess(resource.data.tenantId);
     }
+
+    // 7. Módulo Comercial: Clientes y Catálogo (Privado para la empresa)
+    match /customers/{customerId} {
+      allow read: if hasTenantAccess(resource.data.tenantId);
+      allow create: if hasTenantAccess(request.resource.data.tenantId);
+      allow update, delete: if hasTenantAccess(resource.data.tenantId);
+    }
+
+    match /items/{itemId} {
+      allow read: if hasTenantAccess(resource.data.tenantId);
+      allow create: if hasTenantAccess(request.resource.data.tenantId);
+      allow update, delete: if hasTenantAccess(resource.data.tenantId);
+    }
+
+    // 8. Módulo Comercial: Presupuestos y Órdenes
+    // Lectura pública para que aparezcan en el historial del vehículo (si tienen assetId)
+    // o privada si no tienen, pero por simplicidad permitimos lectura pública o lectura al dueño.
+    // Vamos a permitir lectura pública para el historial.
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow create: if hasTenantAccess(request.resource.data.tenantId);
+      allow update, delete: if hasTenantAccess(resource.data.tenantId);
+    }
+
+    match /salesOrders/{orderId} {
+      allow read: if true;
+      allow create: if hasTenantAccess(request.resource.data.tenantId);
+      allow update, delete: if hasTenantAccess(resource.data.tenantId);
+    }
   }
 }
