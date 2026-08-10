@@ -67,8 +67,14 @@ export default function PublicAssetViewPage() {
         const qList = qSnap.docs.map(d => ({ ...d.data(), id: d.id, _type: 'quote' } as any));
 
         // Combine and sort
-        const combined = [...mList, ...sList, ...qList];
+        let combined = [...mList, ...sList, ...qList];
         
+        // Privacy check: If user is not admin of this tenant, filter out private items
+        const isTenantAdmin = profile && profile.tenantRoles && profile.tenantRoles[aData.tenantId];
+        if (!isTenantAdmin) {
+          combined = combined.filter(item => item.isPublic !== false);
+        }
+
         combined.sort((a, b) => {
           const dateA = a.createdAt?.toDate?.() || new Date(a.date || 0);
           const dateB = b.createdAt?.toDate?.() || new Date(b.date || 0);
@@ -86,7 +92,7 @@ export default function PublicAssetViewPage() {
     };
 
     fetchAssetData();
-  }, [assetId]);
+  }, [assetId, profile]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Cargando perfil del activo...</div>;
   if (error || !asset) return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;

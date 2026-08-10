@@ -63,9 +63,9 @@ export default function TenantAdminLayout({ children }: { children: React.ReactN
                 <Link href="/admin/users" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/users') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
                   Usuarios
                 </Link>
-                <Link href="/admin/settings" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/settings') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
+                {/* <Link href="/admin/settings" className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/settings') ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>
                   Ajustes
-                </Link>
+                </Link> */}
               </>
             )}
           </nav>
@@ -109,9 +109,9 @@ export default function TenantAdminLayout({ children }: { children: React.ReactN
                 <Link href="/admin/users" className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/users') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}>
                   Usuarios
                 </Link>
-                <Link href="/admin/settings" className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/settings') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                {/* <Link href="/admin/settings" className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.includes('/admin/settings') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}>
                   Ajustes
-                </Link>
+                </Link> */}
               </>
             )}
           </nav>

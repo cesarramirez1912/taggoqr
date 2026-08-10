@@ -53,8 +53,9 @@ service cloud.firestore {
     }
 
     // 4. Colección de Etiquetas QR (qrTags)
+    // Lectura pública para que cualquiera pueda escanearlo y ser redirigido si está enlazado
     match /qrTags/{qrId} {
-      allow read: if hasTenantAccess(resource.data.tenantId);
+      allow read: if true;
       allow write: if hasTenantAccess(resource.data.tenantId) || hasTenantAccess(request.resource.data.tenantId);
     }
 

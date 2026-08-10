@@ -71,6 +71,7 @@ export interface Maintenance {
   currency?: string; // Ej. "USD", "PYG", "BRL"
   usageMetricsSnapshot?: string; // Ej. "15500 km" en el momento del mantenimiento
   photos: string[];
+  isPublic?: boolean; // Control de privacidad para el QR público
   createdAt: Date;
   createdBy?: string;
   updatedAt?: Date;
@@ -184,6 +185,7 @@ export interface SalesOrder {
   // Historial de cobros
   payments: Payment[];
   
+  isPublic?: boolean; // Control de privacidad para el QR público
   notes?: string;
   createdAt: Date;
   createdBy?: string;

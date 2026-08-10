@@ -26,7 +26,8 @@ export default function NewMaintenancePage() {
     currency: "USD",
     newUsageMetrics: "",
     nextMaintenanceDate: "",
-    newStatus: "active" as Asset["status"]
+    newStatus: "active" as Asset["status"],
+    isPublic: true
   });
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export default function NewMaintenancePage() {
         currency: formData.cost ? formData.currency : undefined,
         usageMetricsSnapshot: formData.newUsageMetrics,
         photos: [],
+        isPublic: formData.isPublic,
         createdAt: new Date(),
         createdBy: profile.id,
       };
@@ -243,6 +245,21 @@ export default function NewMaintenancePage() {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+        </div>
+
+        <div className="pt-4">
+          <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <input 
+              type="checkbox" 
+              checked={formData.isPublic}
+              onChange={e => setFormData({...formData, isPublic: e.target.checked})}
+              className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <div>
+              <span className="block text-sm font-semibold text-slate-800">Mostrar en el QR Público</span>
+              <span className="block text-xs text-slate-500">Si está activado, los clientes que escaneen el QR de esta máquina podrán ver este registro de servicio.</span>
+            </div>
+          </label>
         </div>
 
         <div className="pt-6 border-t border-slate-200 flex justify-end gap-3">

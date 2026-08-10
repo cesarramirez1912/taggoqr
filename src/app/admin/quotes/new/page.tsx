@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/contexts/AuthContext";
-import { Customer, Asset, Item, Quote, QuoteItem } from "@/lib/repositories/types";
+import { Customer, Asset, Item, Quote, QuoteItem, Maintenance, SalesOrder } from "@/lib/repositories/types";
 import { Plus, Trash2, ArrowLeft, Loader2, Calculator } from "lucide-react";
 
 export default function NewQuotePage() {
@@ -25,6 +25,13 @@ export default function NewQuotePage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("ocasional");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [currency, setCurrency] = useState("USD");
+
+  // Asset Search & History State
+  const [assetSearch, setAssetSearch] = useState("");
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false);
+  const [assetHistory, setAssetHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const [notes, setNotes] = useState("");
   const [validUntil, setValidUntil] = useState("");
 
@@ -56,6 +63,49 @@ export default function NewQuotePage() {
     };
     fetchFormData();
   }, [tenantId]);
+
+  // Fetch history when asset is selected
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!selectedAssetId || !tenantId) {
+        setAssetHistory([]);
+        return;
+      }
+      setLoadingHistory(true);
+      try {
+        const mQuery = query(collection(db, "maintenances"), where("assetId", "==", selectedAssetId));
+        const mSnap = await getDocs(mQuery);
+        const mList = mSnap.docs.map(d => ({ ...d.data(), id: d.id, _type: 'maintenance' } as any));
+
+        const sQuery = query(collection(db, "salesOrders"), where("assetId", "==", selectedAssetId));
+        const sSnap = await getDocs(sQuery);
+        const sList = sSnap.docs.map(d => ({ ...d.data(), id: d.id, _type: 'sale' } as any));
+
+        let combined = [...mList, ...sList];
+        combined.sort((a, b) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(a.date || 0);
+          const dateB = b.createdAt?.toDate?.() || new Date(b.date || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+        
+        setAssetHistory(combined);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, [selectedAssetId, tenantId]);
+
+  const filteredAssets = assets.filter(a => 
+    a.name.toLowerCase().includes(assetSearch.toLowerCase()) || 
+    (a.licensePlate && a.licensePlate.toLowerCase().includes(assetSearch.toLowerCase())) ||
+    (a.customId && a.customId.toLowerCase().includes(assetSearch.toLowerCase()))
+  );
+
+  const selectedAsset = assets.find(a => a.id === selectedAssetId);
+
 
   // Derived state
   const subtotal = lineItems.reduce((acc, curr) => acc + (curr.unitPrice * curr.quantity), 0);
@@ -187,17 +237,56 @@ export default function NewQuotePage() {
               )}
             </div>
 
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-slate-700 mb-1">Vehículo / Activo (Opcional)</label>
-              <select 
-                value={selectedAssetId}
-                onChange={e => setSelectedAssetId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="">-- Ninguno --</option>
-                {assets.map(a => <option key={a.id} value={a.id}>{a.name} - {a.licensePlate || a.customId}</option>)}
-              </select>
-              <p className="text-xs text-slate-500 mt-1">Si seleccionas uno, el presupuesto aparecerá en el historial público del código QR asociado una vez aprobado.</p>
+              {selectedAsset ? (
+                <div className="flex items-center justify-between px-3 py-2 border border-slate-300 rounded-lg bg-slate-50">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{selectedAsset.name}</p>
+                    <p className="text-xs text-slate-500">Chapa: {selectedAsset.licensePlate || 'N/A'}</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => { setSelectedAssetId(""); setAssetSearch(""); }}
+                    className="text-slate-400 hover:text-red-500 p-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por chapa o nombre..."
+                    value={assetSearch}
+                    onChange={e => {
+                      setAssetSearch(e.target.value);
+                      setShowAssetDropdown(true);
+                    }}
+                    onFocus={() => setShowAssetDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowAssetDropdown(false), 200)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                  {showAssetDropdown && assetSearch.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {filteredAssets.length > 0 ? (
+                        filteredAssets.map(a => (
+                          <div 
+                            key={a.id}
+                            onClick={() => { setSelectedAssetId(a.id); setShowAssetDropdown(false); }}
+                            className="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                          >
+                            <p className="text-sm font-medium text-slate-800">{a.name}</p>
+                            <p className="text-xs text-slate-500">Chapa: {a.licensePlate || 'N/A'} | Cód: {a.customId}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-slate-500 text-center">No se encontraron vehículos.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div>
@@ -227,6 +316,52 @@ export default function NewQuotePage() {
             </div>
           </div>
         </div>
+
+        {/* Historial del Vehículo Seleccionado */}
+        {selectedAssetId && (
+          <div className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-blue-600" />
+              Historial Rápido del Vehículo
+            </h3>
+            {loadingHistory ? (
+              <div className="text-sm text-slate-500 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Cargando historial...
+              </div>
+            ) : assetHistory.length > 0 ? (
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                {assetHistory.slice(0, 5).map(item => (
+                  <div key={item.id} className="bg-white p-3 rounded border border-slate-100 flex justify-between items-center">
+                    <div>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${item._type === 'maintenance' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                        {item._type === 'maintenance' ? 'Mantenimiento' : 'Venta/Servicio'}
+                      </span>
+                      <p className="text-sm font-medium text-slate-800 mt-1">
+                        {item._type === 'maintenance' ? item.type : item.items?.map((i: any) => i.name).join(", ") || "Varios"}
+                      </p>
+                      {item.description && <p className="text-xs text-slate-500 truncate max-w-md">{item.description}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">
+                        {new Date(item.date || item.createdAt?.toDate?.() || Date.now()).toLocaleDateString()}
+                      </p>
+                      {(item.cost || item.total) && (
+                        <p className="text-sm font-bold text-slate-700">
+                          {item.currency} {(item.cost || item.total).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {assetHistory.length > 5 && (
+                  <p className="text-xs text-center text-slate-500 pt-2">Y {assetHistory.length - 5} registros más en su perfil.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No hay mantenimientos ni ventas previas registradas para este vehículo.</p>
+            )}
+          </div>
+        )}
 
         {/* Bloque 2: Ítems del Presupuesto */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
