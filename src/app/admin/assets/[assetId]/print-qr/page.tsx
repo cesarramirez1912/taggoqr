@@ -55,7 +55,7 @@ export default function PrintAssetQRPage() {
   };
 
   // The QR URL points to the public profile of the asset
-  const publicUrl = `https://taggoqr.app/a/${asset.id}`;
+  const publicUrl = `https://taggoqr.web.app/a/${asset.id}`;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">

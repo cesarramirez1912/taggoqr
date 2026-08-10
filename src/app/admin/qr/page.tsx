@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { db } from "@/lib/firebase/config";
+import { writeBatch, doc, collection } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 interface MockQR {
   id: string;
@@ -9,16 +13,41 @@ interface MockQR {
 }
 
 export default function QRGeneratorPage() {
+  const { profile } = useAuth();
   const [count, setCount] = useState(10);
   const [generatedQRs, setGeneratedQRs] = useState<MockQR[]>([]);
+  const [generating, setGenerating] = useState(false);
 
-  const handleGenerate = () => {
-    // Simular llamada a Server Action para generar lote
-    const newTags: MockQR[] = Array.from({ length: count }).map((_, i) => ({
-      id: `qr_${Math.random().toString(36).substr(2, 9)}`,
-      status: "printed"
-    }));
-    setGeneratedQRs(newTags);
+  const handleGenerate = async () => {
+    if (!profile || !profile.tenantRoles) return;
+    const tenantId = Object.keys(profile.tenantRoles)[0];
+    if (!tenantId) return;
+
+    setGenerating(true);
+    try {
+      const batch = writeBatch(db);
+      const newTags: MockQR[] = [];
+
+      for (let i = 0; i < count; i++) {
+        const newDocRef = doc(collection(db, "qrTags"));
+        const tagData = {
+          tenantId,
+          status: "printed",
+          createdAt: new Date(),
+          createdBy: profile.id
+        };
+        batch.set(newDocRef, tagData);
+        newTags.push({ id: newDocRef.id, status: "printed" });
+      }
+
+      await batch.commit();
+      setGeneratedQRs(newTags);
+    } catch (err) {
+      console.error("Error generating QRs:", err);
+      alert("Hubo un error al generar los códigos QR");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handlePrint = () => {
@@ -45,9 +74,10 @@ export default function QRGeneratorPage() {
         </div>
         <button 
           onClick={handleGenerate}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+          disabled={generating}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center min-w-[140px] disabled:opacity-70"
         >
-          Generar Lote
+          {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : "Generar Lote"}
         </button>
         {generatedQRs.length > 0 && (
           <button 
@@ -74,16 +104,18 @@ export default function QRGeneratorPage() {
                 <div className="flex-1 flex flex-col items-center justify-center w-full p-4 bg-slate-50">
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm mb-3">
                     <QRCodeSVG 
-                      value={`https://taggoqr.app/q/${qr.id}`} 
+                      value={`https://taggoqr.web.app/q/${qr.id}`} 
                       size={130} 
                       level="H" // High error correction level for better scanning
                       fgColor="#0f172a" // slate-900
                     />
                   </div>
                   
-                  <div className="text-center w-full bg-slate-200 py-1.5 rounded-md">
+                  <div className="text-center w-full bg-slate-200 py-1.5 px-1.5 rounded-md overflow-hidden">
                     <span className="block text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-0.5">Escanear para INFO</span>
-                    <span className="font-mono text-[11px] text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-300">{qr.id.toUpperCase()}</span>
+                    <span className="block w-full truncate font-mono text-[9px] text-slate-600 bg-white px-1 py-0.5 rounded border border-slate-300" title={qr.id.toUpperCase()}>
+                      {qr.id.toUpperCase()}
+                    </span>
                   </div>
                 </div>
               </div>

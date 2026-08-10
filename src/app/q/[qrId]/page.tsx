@@ -52,7 +52,38 @@ export default function QRScannerRouterPage() {
   }, [qrId, loading]);
 
   if (status === "checking") {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">Escaneando etiqueta...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white overflow-hidden relative">
+        {/* Fondo decorativo */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/20 blur-[100px] rounded-full pointer-events-none"></div>
+        
+        <div className="relative flex items-center justify-center mb-10">
+          {/* Anillos animados simulando escaneo */}
+          <div className="absolute w-40 h-40 border-[3px] border-blue-500/20 rounded-full animate-[ping_2.5s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
+          <div className="absolute w-28 h-28 border-[3px] border-blue-400/40 rounded-full animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite_0.5s]"></div>
+          <div className="absolute w-32 h-32 rounded-full border border-blue-500/30 animate-[spin_4s_linear_infinite] border-t-transparent"></div>
+          
+          {/* Logo Central */}
+          <div className="relative z-10 bg-slate-800 w-20 h-20 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.3)] border border-slate-700/50">
+            <svg className="w-10 h-10 text-blue-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+          </div>
+        </div>
+        
+        <h2 className="text-3xl font-black tracking-widest mb-3 flex items-center z-10">
+          TAGGO<span className="text-blue-500">QR</span>
+        </h2>
+        <div className="flex items-center gap-2 z-10">
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+        </div>
+        <p className="text-blue-300/80 text-sm tracking-[0.3em] uppercase font-bold mt-4 z-10 animate-pulse">
+          Escaneando...
+        </p>
+      </div>
+    );
   }
 
   if (status === "not_found") {

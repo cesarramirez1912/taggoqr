@@ -49,7 +49,7 @@ export default function SalesOrderDetailPage() {
   }, [orderId]);
 
   const totalPaid = order?.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-  const pendingBalance = order ? order.total - totalPaid : 0;
+  const pendingBalance = order ? Number(Math.max(0, order.total - totalPaid).toFixed(2)) : 0;
 
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,7 +225,7 @@ export default function SalesOrderDetailPage() {
               </button>
             )}
             
-            {pendingBalance === 0 && (
+            {pendingBalance <= 0 && (
               <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-700 p-3 rounded-lg text-center font-semibold flex items-center justify-center gap-2">
                 <Receipt className="w-5 h-5" /> Venta Totalmente Pagada
               </div>
